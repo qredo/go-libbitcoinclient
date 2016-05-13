@@ -102,6 +102,10 @@ func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32,
 	l.SendCommand("address.fetch_history2", req, callback)
 }
 
+func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{})){
+	l.SendCommand("blockchain.fetch_last_height", []byte{}, callback)
+}
+
 func ParseResponse(command string, data []byte, callback func(interface{})) {
 	switch command {
 	case "address.fetch_history2":
@@ -126,5 +130,11 @@ func ParseResponse(command string, data []byte, callback func(interface{})) {
 			rows = append(rows, r)
 		}
 		callback(rows)
+	case "blockchain.fetch_last_height":
+		buff := bytes.NewBuffer(data)
+		buff.Next(4)
+		heightBytes := buff.Next(4)
+		height := binary.LittleEndian.Uint32(heightBytes)
+		callback(height)
 	}
 }
