@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"time"
+	"bytes"
+	"encoding/hex"
 	"github.com/btcsuite/btcd/chaincfg"
 	btc "github.com/btcsuite/btcutil"
 	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
-	"time"
 )
 
 func main() {
@@ -19,10 +21,12 @@ func main() {
 	addr, _ := btc.DecodeAddress("mrhqn9X8A121nn2AZCwqSdHcdQqttKKG45", &chaincfg.TestNet3Params)
 	client.SubscribeAddress(addr, func(i interface{}){
 		resp := i.(libbitcoin.SubscribeResp)
-		fmt.Println(resp.Address)
-		fmt.Println(resp.Height)
-		fmt.Println(resp.Block)
-		fmt.Println(resp.Tx)
+		fmt.Printf("Address: %s\n", resp.Address)
+		fmt.Printf("Height: %d\n", resp.Height)
+		fmt.Printf("Block: %s\n", resp.Block)
+		output := new(bytes.Buffer)
+		resp.Tx.MsgTx().Serialize(output)
+		fmt.Printf("Tx: %s\n", hex.EncodeToString(output.Bytes()))
 		fmt.Println()
 	})
 	time.Sleep(60 *time.Second)

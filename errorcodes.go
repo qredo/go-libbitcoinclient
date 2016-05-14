@@ -1,7 +1,7 @@
 package libbitcoin
 
 import (
-	"github.com/ipfs/go-ipfs/Godeps/_workspace/src/github.com/syndtr/goleveldb/leveldb/errors"
+	"errors"
 	"encoding/binary"
 )
 

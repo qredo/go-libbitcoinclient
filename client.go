@@ -1,18 +1,23 @@
 package libbitcoin
 
 import (
-	"encoding/binary"
-	"github.com/btcsuite/btcd/wire"
-	btc "github.com/btcsuite/btcutil"
 	"bytes"
 	"strconv"
 	"math/rand"
-	"github.com/btcsuite/btcd/chaincfg"
+	"time"
 	"fmt"
 	"reflect"
 	"strings"
+	"encoding/binary"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/chaincfg"
+	btc "github.com/btcsuite/btcutil"
 	zmq "github.com/pebbe/zmq4"
-	"time"
+)
+
+const (
+	HeartbeatPort = 9092
+	BlockPublishPort = 9093
 )
 
 type Server struct {
@@ -46,7 +51,7 @@ func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinC
 	}
 	cb.parser = client.Parse
 	cb.timeout = client.RotateServer
-	go client.ListenHeartbeat(9092)
+	go client.ListenHeartbeat()
 	go client.renewSubscriptions()
 	return &client
 }
@@ -62,9 +67,9 @@ func (l *LibbitcoinClient) RotateServer(){
 	}
 }
 
-func (l *LibbitcoinClient) ListenHeartbeat(port int) {
+func (l *LibbitcoinClient) ListenHeartbeat() {
 	i := strings.LastIndex(l.ServerList[l.ServerIndex].Url, ":")
-	heartbeatUrl := l.ServerList[l.ServerIndex].Url[:i] + ":" + strconv.Itoa(port)
+	heartbeatUrl := l.ServerList[l.ServerIndex].Url[:i] + ":" + strconv.Itoa(HeartbeatPort)
 	c := make(chan Response)
 	makeSocket := func() *ZMQSocket {
 		s := NewSocket(c, zmq.SUB)
@@ -167,7 +172,7 @@ func (l *LibbitcoinClient) SubscribeAddress(address btc.Address, callback func(i
 }
 
 func (l *LibbitcoinClient) UnsubscribeAddress(address btc.Address){
-	_, ok := l.subscriptions[address.String()];
+	_, ok := l.subscriptions[address.String()]
 	if ok {
 		delete(l.subscriptions, address.String())
 	}
@@ -185,15 +190,23 @@ func (l *LibbitcoinClient) RenewSubscription(address btc.Address, callback func(
 	}
 }
 
+func (l *LibbitcoinClient) Broadcast(tx []byte, callback func(interface{}, error)) {
+	l.SendCommand("protocol.broadcast_transaction", tx, nil)
+}
+
+func (l *LibbitcoinClient) Validate(tx []byte, callback func(interface{}, error)) {
+	l.SendCommand("transaction_pool.validate", tx, nil)
+}
+
 func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(interface{}, error)) {
 	switch command {
 	case "address.fetch_history2":
 		numRows := (len(data)-4)/49
 		buff := bytes.NewBuffer(data)
 		err := ParseError(buff.Next(4))
-		rows := []FetchHistory2Row{}
+		rows := []FetchHistory2Resp{}
 		for i:=0; i<numRows; i++{
-			r := FetchHistory2Row{}
+			r := FetchHistory2Resp{}
 			spendByte := buff.Next(1)
 			spendBool, _ := strconv.ParseBool(string(spendByte))
 			r.IsSpend = spendBool
@@ -244,5 +257,11 @@ func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(inte
 			Tx: *txn,
 		}
 		l.subscriptions[addr.String()].callback(resp)
+	case "protocol.broadcast_transaction":
+		callback(nil, ParseError(data[:4]))
+	case "transaction_pool.validate":
+		b := data[4:5]
+		success, _ := strconv.ParseBool(string(b))
+		callback(success, ParseError(data[:4]))
 	}
 }

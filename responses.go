@@ -4,7 +4,7 @@ import (
 	"github.com/btcsuite/btcutil"
 )
 
-type FetchHistory2Row struct {
+type FetchHistory2Resp struct {
 	IsSpend  bool
 	TxHash   string
 	Index    uint32

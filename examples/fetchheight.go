@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"time"
 	"github.com/btcsuite/btcd/chaincfg"
 	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
-	"time"
 )
 
 func main() {

@@ -1,10 +1,10 @@
 package libbitcoin
 
 import (
-	zmq "github.com/pebbe/zmq4"
-	"encoding/binary"
-	"math/rand"
 	"time"
+	"math/rand"
+	"encoding/binary"
+	zmq "github.com/pebbe/zmq4"
 )
 const MAX_UNIT32 = 4294967295
 
@@ -52,8 +52,10 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 			select {
 			case <- c:
 				ticker.Stop()
+				return
 			case <- ticker.C:
 				cb.timeout()
+				return
 			}
 		}
 	}()

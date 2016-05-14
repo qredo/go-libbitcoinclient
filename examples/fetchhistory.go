@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
+	"time"
 	"github.com/btcsuite/btcd/chaincfg"
 	btc "github.com/btcsuite/btcutil"
 	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
-	"time"
 )
 
 func main() {
-	addr, _ := btc.DecodeAddress("mrhqn9X8A121nn2AZCwqSdHcdQqttKKG45", &chaincfg.TestNet3Params)
+	addr, _ := btc.DecodeAddress("2Mu1qcdDxfy7ebH2yUasPkM36r3qw3AEGEG", &chaincfg.TestNet3Params)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
 			Url:"tcp://libbitcoin2.openbazaar.org:9091",
@@ -18,7 +18,7 @@ func main() {
 	}
 	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.TestNet3Params)
 	client.FetchHistory2(addr, uint32(0), func(i interface{}, err error){
-		for _, response := range(i.([]libbitcoin.FetchHistory2Row)){
+		for _, response := range(i.([]libbitcoin.FetchHistory2Resp)){
 			fmt.Printf("Txid: %s\n", response.TxHash)
 			fmt.Printf("Index: %d\n", response.Index)
 			fmt.Printf("Is Spend: %t\n", response.IsSpend)
