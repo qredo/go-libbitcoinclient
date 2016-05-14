@@ -5,18 +5,19 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	btc "github.com/btcsuite/btcutil"
 	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
+	"time"
 )
 
 func main() {
-	addr, _ := btc.DecodeAddress("3GprJWkxHx3v9qbvRALcquXPHyNjqSTjvy", &chaincfg.MainNetParams)
+	addr, _ := btc.DecodeAddress("mrhqn9X8A121nn2AZCwqSdHcdQqttKKG45", &chaincfg.TestNet3Params)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
-			Url:"tcp://libbitcoin1.openbazaar.org:9091",
-			PublicKey:"",
+			Url:"tcp://libbitcoin2.openbazaar.org:9091",
+			PublicKey:"baihZB[vT(dcVCwkhYLAzah<t2gJ>{3@k?+>T&^3",
 		},
 	}
-	client := libbitcoin.NewLibbitcoinClient(servers, chaincfg.MainNetParams)
-	client.FetchHistory2(addr, uint32(0), func(i interface{}){
+	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.TestNet3Params)
+	client.FetchHistory2(addr, uint32(0), func(i interface{}, err error){
 		for _, response := range(i.([]libbitcoin.FetchHistory2Row)){
 			fmt.Printf("Txid: %s\n", response.TxHash)
 			fmt.Printf("Index: %d\n", response.Index)
@@ -26,5 +27,5 @@ func main() {
 			fmt.Println()
 		}
 	})
-	for {}
+	time.Sleep(10 *time.Second)
 }

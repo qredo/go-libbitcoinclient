@@ -1,5 +1,8 @@
 package libbitcoin
 
+import (
+	"github.com/btcsuite/btcutil"
+)
 
 type FetchHistory2Row struct {
 	IsSpend  bool
@@ -9,4 +12,10 @@ type FetchHistory2Row struct {
 	Value    uint64
 }
 
+type SubscribeResp struct{
+	Address   string
+	Height    uint32
+	Block     string
+	Tx        btcutil.Tx
+}
 

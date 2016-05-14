@@ -24,20 +24,26 @@ type LibbitcoinClient struct {
 	*ClientBase
 	ServerList       []Server
 	ConnectedServer  Server
-	Params           chaincfg.Params
+	Params           *chaincfg.Params
+	subscriptions    map[string]func(interface{}, error)
 }
 
-func NewLibbitcoinClient(servers []Server, params chaincfg.Params) *LibbitcoinClient {
+var client *LibbitcoinClient
+
+func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinClient {
 	r := rand.Intn(len(servers))
 	cb := NewClientBase(servers[r].Url, servers[r].PublicKey)
-	client := LibbitcoinClient{
+	subs := make(map[string]func(interface{}, error))
+	c := LibbitcoinClient{
 		ClientBase: cb,
 		ServerList: servers,
 		ConnectedServer: servers[r],
 		Params: params,
+		subscriptions: subs,
 	}
-	go client.ListenHeartbeat(9092)
-	return &client
+	client = &c
+	go c.ListenHeartbeat(9092)
+	return &c
 }
 
 func (l *LibbitcoinClient) ListenHeartbeat(port int) {
@@ -72,7 +78,7 @@ func (l *LibbitcoinClient) ListenHeartbeat(port int) {
 	}()
 }
 
-func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32, callback func(interface{})) {
+func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32, callback func(interface{}, error)) {
 	hash160 := address.ScriptAddress()
 	var netID byte
 	height := make([]byte, 4)
@@ -81,20 +87,19 @@ func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32,
 
 	switch reflect.TypeOf(address).String() {
 
-	case "btc.AddressPubKeyHash":
+	case "*btcutil.AddressPubKeyHash":
 		if l.Params.Name == chaincfg.MainNetParams.Name {
 			netID = byte(0)
 		} else {
 			netID = byte(111)
 		}
-	case "btc.AddressScriptHash":
+	case "*btcutil.AddressScriptHash":
 		if l.Params.Name == chaincfg.MainNetParams.Name {
 			netID = byte(5)
 		} else {
 			netID = byte(196)
 		}
 	}
-
 	req := []byte{}
 	req = append(req, netID)
 	req = append(req, hash160...)
@@ -102,16 +107,35 @@ func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32,
 	l.SendCommand("address.fetch_history2", req, callback)
 }
 
-func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{})){
+func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{}, error)){
 	l.SendCommand("blockchain.fetch_last_height", []byte{}, callback)
 }
 
-func ParseResponse(command string, data []byte, callback func(interface{})) {
+func (l *LibbitcoinClient) FetchTransaction(txid string, callback func(interface{}, error)){
+	b, _ := wire.NewShaHashFromStr(txid)
+	l.SendCommand("blockchain.fetch_transaction", b.Bytes(), callback)
+}
+
+func (l *LibbitcoinClient) FetchUnconfirmedTransaction(txid string, callback func(interface{}, error)){
+	b, _ := wire.NewShaHashFromStr(txid)
+	l.SendCommand("transaction_pool.fetch_transaction", b.Bytes(), callback)
+}
+
+func (l *LibbitcoinClient) SubscribeAddress(address btc.Address, callback func(interface{}, error)) {
+	req := []byte{}
+	req = append(req, byte(0))
+	req = append(req, byte(160))
+	req = append(req, address.ScriptAddress()...)
+	l.SendCommand("address.subscribe", req, nil)
+	l.subscriptions[address.String()] = callback
+}
+
+func ParseResponse(command string, data []byte, callback func(interface{}, error)) {
 	switch command {
 	case "address.fetch_history2":
 		numRows := (len(data)-4)/49
 		buff := bytes.NewBuffer(data)
-		buff.Next(4)
+		err := ParseError(buff.Next(4))
 		rows := []FetchHistory2Row{}
 		for i:=0; i<numRows; i++{
 			r := FetchHistory2Row{}
@@ -129,12 +153,41 @@ func ParseResponse(command string, data []byte, callback func(interface{})) {
 			r.Value = binary.LittleEndian.Uint64(valueBytes)
 			rows = append(rows, r)
 		}
-		callback(rows)
+		callback(rows, err)
 	case "blockchain.fetch_last_height":
+		height := binary.LittleEndian.Uint32(data[4:])
+		callback(height, ParseError(data[:4]))
+	case "blockchain.fetch_transaction":
+		txn, _ := btc.NewTxFromBytes(data[4:])
+		callback(txn, ParseError(data[:4]))
+	case "transaction_pool.fetch_transaction":
+		txn, _ := btc.NewTxFromBytes(data[4:])
+		callback(txn, ParseError(data[:4]))
+	case "address.update":
 		buff := bytes.NewBuffer(data)
-		buff.Next(4)
-		heightBytes := buff.Next(4)
-		height := binary.LittleEndian.Uint32(heightBytes)
-		callback(height)
+		addressVersion := buff.Next(1)[0]
+		addressHash160 := buff.Next(20)
+		height := buff.Next(4)
+		block := buff.Next(32)
+		tx := buff.Bytes()
+
+		var addr btc.Address
+		if addressVersion == byte(111) || addressVersion == byte(0) {
+			a, _ := btc.NewAddressPubKeyHash(addressHash160, client.Params)
+			addr = a
+		} else if addressVersion == byte(5) || addressVersion == byte(196) {
+			a, _ := btc.NewAddressScriptHashFromHash(addressHash160, client.Params)
+			addr = a
+		}
+		bl, _ := wire.NewShaHash(block)
+		txn, _ := btc.NewTxFromBytes(tx)
+
+		resp := SubscribeResp{
+			Address: addr.String(),
+			Height: binary.LittleEndian.Uint32(height),
+			Block: bl.String(),
+			Tx: *txn,
+		}
+		client.subscriptions[addr.String()](resp, nil)
 	}
 }

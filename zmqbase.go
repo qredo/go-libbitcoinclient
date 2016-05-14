@@ -9,7 +9,7 @@ const MAX_UNIT32 = 4294967295
 
 type ClientBase struct {
 	socket         *ZMQSocket
-	subscriptions  map[int] func(interface{})
+	outstanding    map[int] func(interface{}, error)
 	messages       [][]byte
 	handler        chan Response
 
@@ -17,11 +17,11 @@ type ClientBase struct {
 
 func NewClientBase(address string, publicKey string) *ClientBase {
 	handler := make(chan Response)
-	subcriptions := make(map[int] func(interface{}))
+	outstanding := make(map[int] func(interface{}, error))
 	cb := ClientBase{
 		socket: NewSocket(handler, zmq.DEALER),
 		handler: handler,
-		subscriptions: subcriptions,
+		outstanding: outstanding,
 		messages: [][]byte{},
 	}
 	cb.socket.Connect(address, publicKey)
@@ -29,12 +29,12 @@ func NewClientBase(address string, publicKey string) *ClientBase {
 	return &cb
 }
 
-func (cb *ClientBase) SendCommand(command string, data []byte, callback func(interface{})) {
+func (cb *ClientBase) SendCommand(command string, data []byte, callback func(interface{}, error)) {
 	txid := rand.Intn(MAX_UNIT32)
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(txid))
 
-	cb.subscriptions[txid] = callback
+	cb.outstanding[txid] = callback
 
 	cb.socket.Send([]byte(command), 2)
 	cb.socket.Send(b, 2)
@@ -43,7 +43,7 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 
 func (cb *ClientBase) messageReceived(command string, id, data []byte){
 	txid := int(binary.LittleEndian.Uint32(id))
-	ParseResponse(command, data, cb.subscriptions[txid])
+	ParseResponse(command, data, cb.outstanding[txid])
 }
 
 func (cb *ClientBase) handleResponse(){
