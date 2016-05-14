@@ -23,7 +23,7 @@ func main() {
 			fmt.Println(err.Error())
 
 		} else {
-			fmt.Println(fmt.Printf(i.(btcutil.Tx)))
+			fmt.Println(i.(btcutil.Tx))
 		}
 	})
 	time.Sleep(10 *time.Second)

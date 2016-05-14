@@ -5,15 +5,17 @@ import (
 	"strconv"
 	"math/rand"
 	"time"
-	"fmt"
 	"reflect"
 	"strings"
 	"encoding/binary"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/op/go-logging"
 	btc "github.com/btcsuite/btcutil"
 	zmq "github.com/pebbe/zmq4"
 )
+
+var log = logging.MustGetLogger("main")
 
 const (
 	HeartbeatPort = 9092
@@ -53,6 +55,7 @@ func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinC
 	cb.timeout = client.RotateServer
 	go client.ListenHeartbeat()
 	go client.renewSubscriptions()
+	log.Infof("Libbitcoin client connected to %s\n", client.ServerList[client.ServerIndex].Url)
 	return &client
 }
 
@@ -65,6 +68,7 @@ func (l *LibbitcoinClient) RotateServer(){
 		addr, _ := btc.DecodeAddress(k, l.Params)
 		l.SubscribeAddress(addr, v.callback)
 	}
+	log.Infof("Rotating libbitcoin server, using %s\n", l.ServerList[l.ServerIndex].Url)
 }
 
 func (l *LibbitcoinClient) ListenHeartbeat() {
@@ -80,7 +84,7 @@ func (l *LibbitcoinClient) ListenHeartbeat() {
 
 	timeout := func(){
 		s.Close()
-		fmt.Println("Server heartbeat timeout")
+		log.Warningf("Libbitcoin server at %s timed out on heartbeat\n", l.ServerList[l.ServerIndex].Url)
 		l.RotateServer()
 		s = makeSocket()
 	}
@@ -89,7 +93,6 @@ func (l *LibbitcoinClient) ListenHeartbeat() {
 		for {
 			select {
 			case <- c:
-				fmt.Println("heartbeat")
 				ticker.Stop()
 				ticker = time.NewTicker(10 * time.Second)
 			case <- ticker.C:

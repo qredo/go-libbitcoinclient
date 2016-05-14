@@ -17,7 +17,8 @@ func main() {
 		},
 	}
 	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.TestNet3Params)
-	client.FetchHistory2(addr, uint32(0), func(i interface{}, err error){
+	fromHeight := uint32(0)
+	client.FetchHistory2(addr, fromHeight, func(i interface{}, err error){
 		for _, response := range(i.([]libbitcoin.FetchHistory2Resp)){
 			fmt.Printf("Txid: %s\n", response.TxHash)
 			fmt.Printf("Index: %d\n", response.Index)

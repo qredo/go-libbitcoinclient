@@ -50,11 +50,18 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 	go func() {
 		for {
 			select {
-			case <- c:
+			case <- c: // Server returned properly.
 				ticker.Stop()
 				return
-			case <- ticker.C:
+			case <- ticker.C: //Server timed out. Rotate servers and resend message.
+				log.Warningf("Libbitcoin server timed out on %s\n", command)
+				ticker.Stop()
 				cb.timeout()
+				_, ok := cb.outstanding[txid]
+				if ok {
+					delete(cb.outstanding, txid)
+				}
+				cb.SendCommand(command, data, callback)
 				return
 			}
 		}
@@ -69,7 +76,9 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 func (cb *ClientBase) messageReceived(command string, id, data []byte){
 	txid := int(binary.LittleEndian.Uint32(id))
 	cb.outstanding[txid].stop <- ""
-	cb.parser(command, data, cb.outstanding[txid].callback)
+	callback := cb.outstanding[txid].callback
+	delete(cb.outstanding, txid)
+	cb.parser(command, data, callback)
 }
 
 func (cb *ClientBase) handleResponse(){
