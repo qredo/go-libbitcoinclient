@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"sync"
 	"github.com/btcsuite/btcd/chaincfg"
 	btc "github.com/btcsuite/btcutil"
 	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
 )
 
 func main() {
+	var wg sync.WaitGroup
+	wg.Add(1)
 	addr, _ := btc.DecodeAddress("2Mu1qcdDxfy7ebH2yUasPkM36r3qw3AEGEG", &chaincfg.TestNet3Params)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
@@ -27,6 +29,7 @@ func main() {
 			fmt.Printf("Value (satoshis): %d\n", response.Value)
 			fmt.Println()
 		}
+		wg.Done()
 	})
-	time.Sleep(10 *time.Second)
+	wg.Wait()
 }

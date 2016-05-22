@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"sync"
 	"bytes"
 	"encoding/hex"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	var wg sync.WaitGroup
+	wg.Add(1)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
 			Url:"tcp://libbitcoin2.openbazaar.org:9091",
@@ -28,6 +30,7 @@ func main() {
 		resp.Tx.MsgTx().Serialize(output)
 		fmt.Printf("Tx: %s\n", hex.EncodeToString(output.Bytes()))
 		fmt.Println()
+		wg.Done()
 	})
-	time.Sleep(60 *time.Second)
+	wg.Wait()
 }

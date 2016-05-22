@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"sync"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
 )
 
 func main() {
+	var wg sync.WaitGroup
+	wg.Add(1)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
 			Url:"tcp://libbitcoin3.openbazaar.org:9091",
@@ -25,6 +27,7 @@ func main() {
 		} else {
 			fmt.Println(i.(btcutil.Tx))
 		}
+		wg.Done()
 	})
-	time.Sleep(10 *time.Second)
+	wg.Wait()
 }

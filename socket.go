@@ -47,7 +47,7 @@ func (s *ZMQSocket) Connect(address, publicKey string) error {
 	if err != nil {
 		return err
 	}
-	go s.poll()
+ 	go s.poll()
 	return nil
 }
 
