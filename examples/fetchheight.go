@@ -12,14 +12,14 @@ func main() {
 	wg.Add(1)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
-			Url:"tcp://libbitcoin5.openbazaar.org:9091",
+			Url:"tcp://libbitcoin3.openbazaar.org:9091",
 			PublicKey:"",
 		},
 	}
 	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.MainNetParams)
 	client.FetchLastHeight(func(i interface{}, err error){
 		fmt.Println(i.(uint32))
-		//wg.Done()
+		wg.Done()
 	})
 	wg.Wait()
 }
