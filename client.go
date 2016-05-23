@@ -60,10 +60,9 @@ func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinC
 }
 
 func (l *LibbitcoinClient) RotateServer(){
+	currentUrl := l.ServerList[l.ServerIndex].Url
 	l.ServerIndex = (l.ServerIndex + 1) % len(l.ServerList)
-	l.ClientBase.socket.Close()
-	l.ClientBase.socket = NewSocket(l.ClientBase.handler, zmq.DEALER)
-	l.ClientBase.socket.Connect(l.ServerList[l.ServerIndex].Url, l.ServerList[l.ServerIndex].PublicKey)
+	l.ClientBase.socket.ChangeEndpoint(currentUrl, l.ServerList[l.ServerIndex].Url, l.ServerList[l.ServerIndex].PublicKey)
 	for k, v := range(l.subscriptions){
 		addr, _ := btc.DecodeAddress(k, l.Params)
 		l.SubscribeAddress(addr, v.callback)
@@ -73,20 +72,18 @@ func (l *LibbitcoinClient) RotateServer(){
 
 func (l *LibbitcoinClient) ListenHeartbeat() {
 	i := strings.LastIndex(l.ServerList[l.ServerIndex].Url, ":")
+	heartbeatUrl := l.ServerList[l.ServerIndex].Url[:i] + ":" + strconv.Itoa(HeartbeatPort)
 	c := make(chan Response)
-	makeSocket := func() *ZMQSocket {
-		heartbeatUrl := l.ServerList[l.ServerIndex].Url[:i] + ":" + strconv.Itoa(HeartbeatPort)
-		s := NewSocket(c, zmq.SUB)
-		s.Connect(heartbeatUrl, "")
-		return s
-	}
-	s := makeSocket()
+	s := NewSocket(c, zmq.SUB)
+	s.Connect(heartbeatUrl, "")
 
 	timeout := func(){
-		s.Close()
 		log.Warningf("Libbitcoin server at %s timed out on heartbeat\n", l.ServerList[l.ServerIndex].Url)
 		l.RotateServer()
-		s = makeSocket()
+		currentUrl := heartbeatUrl
+		i := strings.LastIndex(l.ServerList[l.ServerIndex].Url, ":")
+		heartbeatUrl = l.ServerList[l.ServerIndex].Url[:i] + ":" + strconv.Itoa(HeartbeatPort)
+		s.ChangeEndpoint(currentUrl, heartbeatUrl, "")
 	}
 	ticker := time.NewTicker(10 * time.Second)
 	for {
