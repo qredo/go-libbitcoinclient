@@ -73,9 +73,9 @@ func (l *LibbitcoinClient) RotateServer(){
 
 func (l *LibbitcoinClient) ListenHeartbeat() {
 	i := strings.LastIndex(l.ServerList[l.ServerIndex].Url, ":")
-	heartbeatUrl := l.ServerList[l.ServerIndex].Url[:i] + ":" + strconv.Itoa(HeartbeatPort)
 	c := make(chan Response)
 	makeSocket := func() *ZMQSocket {
+		heartbeatUrl := l.ServerList[l.ServerIndex].Url[:i] + ":" + strconv.Itoa(HeartbeatPort)
 		s := NewSocket(c, zmq.SUB)
 		s.Connect(heartbeatUrl, "")
 		return s

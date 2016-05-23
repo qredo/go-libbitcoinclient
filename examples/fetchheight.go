@@ -12,7 +12,7 @@ func main() {
 	wg.Add(1)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
-			Url:"tcp://libbitcoin1.openbazaar.org:9091",
+			Url:"tcp://libbitcoin3.openbazaar.org:9091",
 			PublicKey:"",
 		},
 	}
