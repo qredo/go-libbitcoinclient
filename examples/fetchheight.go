@@ -12,8 +12,8 @@ func main() {
 	wg.Add(1)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
-			Url:"tcp://libbitcoin3.openbazaar.org:9091",
-			PublicKey:"",
+			Url:"tcp://libbitcoin2.openbazaar.org:9091",
+			PublicKey:"baihZB[vT(dcVCwkhYLAzah<t2gJ>{3@k?+>T&^3",
 		},
 	}
 	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.MainNetParams)
