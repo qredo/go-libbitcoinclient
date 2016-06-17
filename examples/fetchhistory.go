@@ -11,7 +11,7 @@ import (
 func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
-	addr, _ := btc.DecodeAddress("2Mu1qcdDxfy7ebH2yUasPkM36r3qw3AEGEG", &chaincfg.TestNet3Params)
+	addr, _ := btc.DecodeAddress("2ND3E7kix3xogR77H8F35zjufXZkHUvWTvA", &chaincfg.TestNet3Params)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
 			Url:"tcp://libbitcoin2.openbazaar.org:9091",
