@@ -66,12 +66,12 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 			case <- ticker.C: //Server timed out. Rotate servers and resend message.
 				ticker.Stop()
 				cb.timeout()
+				cb.lock.Lock()
 				_, ok := cb.outstanding[txid]
 				if ok {
-					cb.lock.Lock()
 					delete(cb.outstanding, txid)
-					cb.lock.Unlock()
 				}
+				cb.lock.Unlock()
 				cb.SendCommand(command, data, callback)
 				break listen
 			}
@@ -81,13 +81,13 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 func (cb *ClientBase) messageReceived(command string, id, data []byte){
 	txid := int(binary.LittleEndian.Uint32(id))
 	var callback func(interface{}, error)
+	cb.lock.Lock()
 	if _, ok := cb.outstanding[txid]; ok {
 		cb.outstanding[txid].stop <- ""
 		callback = cb.outstanding[txid].callback
-		cb.lock.Lock()
 		delete(cb.outstanding, txid)
-		cb.lock.Unlock()
 	}
+	cb.lock.Unlock()
 	cb.parser(command, data, callback)
 }
 
