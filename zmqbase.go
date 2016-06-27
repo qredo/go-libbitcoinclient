@@ -64,7 +64,6 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 				ticker.Stop()
 				break listen
 			case <- ticker.C: //Server timed out. Rotate servers and resend message.
-				log.Warningf("Libbitcoin server timed out on %s\n", command)
 				ticker.Stop()
 				cb.timeout()
 				_, ok := cb.outstanding[txid]
