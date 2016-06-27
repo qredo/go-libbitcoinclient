@@ -33,6 +33,7 @@ type LibbitcoinClient struct {
 	ServerIndex      int
 	Params           *chaincfg.Params
 	subscriptions    map[string]subscription
+	connectionTime   time.Time
 }
 
 type subscription struct {
@@ -50,6 +51,7 @@ func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinC
 		ServerIndex: r,
 		Params: params,
 		subscriptions: subs,
+		connectionTime: time.Now(),
 	}
 	cb.parser = client.Parse
 	cb.timeout = client.RotateServer
@@ -60,14 +62,17 @@ func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinC
 }
 
 func (l *LibbitcoinClient) RotateServer(){
-	currentUrl := l.ServerList[l.ServerIndex].Url
-	l.ServerIndex = (l.ServerIndex + 1) % len(l.ServerList)
-	l.ClientBase.socket.ChangeEndpoint(currentUrl, l.ServerList[l.ServerIndex].Url, l.ServerList[l.ServerIndex].PublicKey)
-	for k, v := range(l.subscriptions){
-		addr, _ := btc.DecodeAddress(k, l.Params)
-		l.SubscribeAddress(addr, v.callback)
+	if time.Now().Sub(l.connectionTime) > time.Second * 30 {
+		currentUrl := l.ServerList[l.ServerIndex].Url
+		l.ServerIndex = (l.ServerIndex + 1) % len(l.ServerList)
+		l.ClientBase.socket.ChangeEndpoint(currentUrl, l.ServerList[l.ServerIndex].Url, l.ServerList[l.ServerIndex].PublicKey)
+		for k, v := range (l.subscriptions) {
+			addr, _ := btc.DecodeAddress(k, l.Params)
+			l.SubscribeAddress(addr, v.callback)
+		}
+		l.connectionTime = time.Now()
+		log.Infof("Rotating libbitcoin server, using %s\n", l.ServerList[l.ServerIndex].Url)
 	}
-	log.Infof("Rotating libbitcoin server, using %s\n", l.ServerList[l.ServerIndex].Url)
 }
 
 func (l *LibbitcoinClient) ListenHeartbeat() {

@@ -69,7 +69,9 @@ func (cb *ClientBase) SendCommand(command string, data []byte, callback func(int
 				cb.timeout()
 				_, ok := cb.outstanding[txid]
 				if ok {
+					cb.lock.Lock()
 					delete(cb.outstanding, txid)
+					cb.lock.Unlock()
 				}
 				cb.SendCommand(command, data, callback)
 				break listen
