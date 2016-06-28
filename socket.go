@@ -57,13 +57,11 @@ func (s *ZMQSocket) Connect(address, publicKey string) error {
 
 func (s *ZMQSocket) poll() {
 	for {
-		s.lock.Lock()
 		b, err := s.socket.RecvBytes(0)
 		if err != nil {
 			break
 		}
 		more, err := s.socket.GetRcvmore()
-		s.lock.Unlock()
 		if err != nil {
 			break
 		}
