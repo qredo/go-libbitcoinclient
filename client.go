@@ -3,8 +3,9 @@ package libbitcoin
 import (
 	"bytes"
 	"strconv"
-	"math/rand"
+	"crypto/rand"
 	"time"
+	"math/big"
 	"reflect"
 	"strings"
 	"sync"
@@ -44,7 +45,8 @@ type subscription struct {
 }
 
 func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinClient {
-	r := rand.Intn(len(servers))
+	rb, _ := rand.Int(rand.Reader, big.NewInt(int64(len(servers))))
+	r := int(rb.Int64())
 	cb := NewClientBase(servers[r].Url, servers[r].PublicKey)
 	subs := make(map[string]subscription)
 	l := new(sync.Mutex)
