@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"sync"
 	"bytes"
 	"encoding/hex"
+	"fmt"
+	"sync"
+
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
-	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
+	libbitcoin "github.com/qredo/go-libbitcoinclient"
 )
 
 func main() {
@@ -15,14 +16,14 @@ func main() {
 	wg.Add(1)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
-			Url:"tcp://libbitcoin3.openbazaar.org:9091",
-			PublicKey:"",
+			Url:       "tcp://mainnet.libbitcoin.net:9091",
+			PublicKey: "",
 		},
 	}
 	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.MainNetParams)
 
-	tx := "d26600672e219914c37aca78850b17e01bbeab3252e6239da0377bcb63e3e119"
-	client.FetchTransaction(tx, func(i interface{}, err error){
+	tx := "61222090ac412e1b77793f03b68b2551710b51949edb38d6f516e369eb499ea4"
+	client.FetchTransaction(tx, func(i interface{}, err error) {
 		if err != nil {
 			fmt.Println(err.Error())
 
