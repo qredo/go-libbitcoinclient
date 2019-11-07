@@ -5,7 +5,7 @@ import (
 	"sync"
 	"github.com/btcsuite/btcd/chaincfg"
 	btc "github.com/btcsuite/btcutil"
-	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
+	libbitcoin "github.com/qredo/go-libbitcoinclient"
 )
 
 func main() {
