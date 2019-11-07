@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -12,10 +14,18 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
+
 	btc "github.com/btcsuite/btcutil"
 	"github.com/op/go-logging"
 	zmq "github.com/pebbe/zmq4"
 )
+
+type ShaHash [32]byte
+
+const HashSize = 32
+const MaxHashStringSize = HashSize * 2
+
+var ErrHashStrSize = fmt.Errorf("max hash string length is %v bytes", MaxHashStringSize)
 
 var log = logging.MustGetLogger("main")
 
@@ -163,12 +173,12 @@ func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{}, error)) {
 }
 
 func (l *LibbitcoinClient) FetchTransaction(txid string, callback func(interface{}, error)) {
-	b, _ := chainhash.NewShaHashFromStr(txid)
+	b, _ := NewShaHashFromStr(txid)
 	go l.SendCommand("blockchain.fetch_transaction", b.Bytes(), callback)
 }
 
 func (l *LibbitcoinClient) FetchUnconfirmedTransaction(txid string, callback func(interface{}, error)) {
-	b, _ := chainhash.NewShaHashFromStr(txid)
+	b, _ := NewShaHashFromStr(txid)
 	go l.SendCommand("transaction_pool.fetch_transaction", b.Bytes(), callback)
 }
 
@@ -235,7 +245,7 @@ func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(inte
 			}
 			r.IsSpend = spendBool
 			lehash := buff.Next(32)
-			sh, _ := chainhash.NewShaHash(lehash)
+			sh, _ := NewShaHash(lehash)
 			r.TxHash = sh.String()
 			indexBytes := buff.Next(4)
 			r.Index = binary.LittleEndian.Uint32(indexBytes)
@@ -271,7 +281,7 @@ func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(inte
 			a, _ := btc.NewAddressScriptHashFromHash(addressHash160, l.Params)
 			addr = a
 		}
-		bl, _ := chainhash.NewShaHash(block)
+		bl, _ := NewShaHash(block)
 		txn, _ := btc.NewTxFromBytes(tx)
 
 		resp := SubscribeResp{
@@ -290,4 +300,74 @@ func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(inte
 		success, _ := strconv.ParseBool(string(b))
 		callback(success, ParseError(data[:4]))
 	}
+}
+
+func NewShaHashFromStr(hash string) (*ShaHash, error) {
+	// Return error if hash string is too long.
+	if len(hash) > MaxHashStringSize {
+		return nil, ErrHashStrSize
+	}
+
+	// Hex decoder expects the hash to be a multiple of two.
+	if len(hash)%2 != 0 {
+		hash = "0" + hash
+	}
+
+	// Convert string hash to bytes.
+	buf, err := hex.DecodeString(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Un-reverse the decoded bytes, copying into in leading bytes of a
+	// ShaHash.  There is no need to explicitly pad the result as any
+	// missing (when len(buf) < HashSize) bytes from the decoded hex string
+	// will remain zeros at the end of the ShaHash.
+	var ret ShaHash
+	blen := len(buf)
+	mid := blen / 2
+	if blen%2 != 0 {
+		mid++
+	}
+	blen--
+	for i, b := range buf[:mid] {
+		ret[i], ret[blen-i] = buf[blen-i], b
+	}
+	return &ret, nil
+}
+
+func NewShaHash(newHash []byte) (*ShaHash, error) {
+	var sh ShaHash
+	err := sh.SetBytes(newHash)
+	if err != nil {
+		return nil, err
+	}
+	return &sh, err
+}
+
+func (hash *ShaHash) Bytes() []byte {
+	newHash := make([]byte, HashSize)
+	copy(newHash, hash[:])
+
+	return newHash
+}
+
+// SetBytes sets the bytes which represent the hash.  An error is returned if
+// the number of bytes passed in is not HashSize.
+func (hash *ShaHash) SetBytes(newHash []byte) error {
+	nhlen := len(newHash)
+	if nhlen != HashSize {
+		return fmt.Errorf("invalid sha length of %v, want %v", nhlen,
+			HashSize)
+	}
+	copy(hash[:], newHash[0:HashSize])
+
+	return nil
+}
+
+func (hash ShaHash) String() string {
+	for i := 0; i < HashSize/2; i++ {
+		hash[i], hash[HashSize-1-i] = hash[HashSize-1-i], hash[i]
+	}
+	return hex.EncodeToString(hash[:])
 }
