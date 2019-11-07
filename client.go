@@ -2,25 +2,25 @@ package libbitcoin
 
 import (
 	"bytes"
-	"strconv"
 	"crypto/rand"
-	"time"
+	"encoding/binary"
 	"math/big"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
-	"encoding/binary"
-	"github.com/btcsuite/btcd/wire"
+	"time"
+
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/op/go-logging"
 	btc "github.com/btcsuite/btcutil"
+	"github.com/op/go-logging"
 	zmq "github.com/pebbe/zmq4"
 )
 
 var log = logging.MustGetLogger("main")
 
 const (
-	HeartbeatPort = 9092
+	HeartbeatPort    = 9092
 	BlockPublishPort = 9093
 )
 
@@ -31,12 +31,12 @@ type Server struct {
 
 type LibbitcoinClient struct {
 	*ClientBase
-	ServerList       []Server
-	ServerIndex      int
-	Params           *chaincfg.Params
-	subscriptions    map[string]subscription
-	connectionTime   time.Time
-	lock             *sync.Mutex
+	ServerList     []Server
+	ServerIndex    int
+	Params         *chaincfg.Params
+	subscriptions  map[string]subscription
+	connectionTime time.Time
+	lock           *sync.Mutex
 }
 
 type subscription struct {
@@ -51,13 +51,13 @@ func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinC
 	subs := make(map[string]subscription)
 	l := new(sync.Mutex)
 	client := LibbitcoinClient{
-		ClientBase: cb,
-		ServerList: servers,
-		ServerIndex: r,
-		Params: params,
-		subscriptions: subs,
+		ClientBase:     cb,
+		ServerList:     servers,
+		ServerIndex:    r,
+		Params:         params,
+		subscriptions:  subs,
 		connectionTime: time.Now(),
-		lock: l,
+		lock:           l,
 	}
 	cb.parser = client.Parse
 	cb.timeout = client.RotateServer
@@ -67,13 +67,13 @@ func NewLibbitcoinClient(servers []Server, params *chaincfg.Params) *LibbitcoinC
 	return &client
 }
 
-func (l *LibbitcoinClient) RotateServer(){
-	if time.Now().Sub(l.connectionTime) > time.Second * 30 {
+func (l *LibbitcoinClient) RotateServer() {
+	if time.Now().Sub(l.connectionTime) > time.Second*30 {
 		currentUrl := l.ServerList[l.ServerIndex].Url
 		l.ServerIndex = (l.ServerIndex + 1) % len(l.ServerList)
 		l.ClientBase.socket.ChangeEndpoint(currentUrl, l.ServerList[l.ServerIndex].Url, l.ServerList[l.ServerIndex].PublicKey)
 		l.lock.Lock()
-		for k, v := range (l.subscriptions) {
+		for k, v := range l.subscriptions {
 			addr, _ := btc.DecodeAddress(k, l.Params)
 			l.SubscribeAddress(addr, v.callback)
 		}
@@ -90,7 +90,7 @@ func (l *LibbitcoinClient) ListenHeartbeat() {
 	s := NewSocket(c, zmq.SUB)
 	s.Connect(heartbeatUrl, "")
 
-	timeout := func(){
+	timeout := func() {
 		log.Warningf("Libbitcoin server at %s timed out on heartbeat\n", l.ServerList[l.ServerIndex].Url)
 		l.RotateServer()
 		currentUrl := heartbeatUrl
@@ -101,24 +101,24 @@ func (l *LibbitcoinClient) ListenHeartbeat() {
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		select {
-		case <- c:
+		case <-c:
 			ticker.Stop()
 			ticker = time.NewTicker(10 * time.Second)
-		case <- ticker.C:
+		case <-ticker.C:
 			timeout()
 		}
 	}
 }
 
-func(l *LibbitcoinClient) renewSubscriptions(){
+func (l *LibbitcoinClient) renewSubscriptions() {
 	ticker := time.NewTicker(1 * time.Minute)
 	func() {
 		for {
 			select {
-			case <- ticker.C:
+			case <-ticker.C:
 				l.lock.Lock()
-				for k, v := range(l.subscriptions){
-					if v.expiration.After(time.Now()){
+				for k, v := range l.subscriptions {
+					if v.expiration.After(time.Now()) {
 						addr, _ := btc.DecodeAddress(k, l.Params)
 						l.RenewSubscription(addr, v.callback)
 					}
@@ -158,17 +158,17 @@ func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32,
 	go l.SendCommand("address.fetch_history2", req, callback)
 }
 
-func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{}, error)){
+func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{}, error)) {
 	go l.SendCommand("blockchain.fetch_last_height", []byte{}, callback)
 }
 
-func (l *LibbitcoinClient) FetchTransaction(txid string, callback func(interface{}, error)){
-	b, _ := wire.NewShaHashFromStr(txid)
+func (l *LibbitcoinClient) FetchTransaction(txid string, callback func(interface{}, error)) {
+	b, _ := chainhash.NewShaHashFromStr(txid)
 	go l.SendCommand("blockchain.fetch_transaction", b.Bytes(), callback)
 }
 
-func (l *LibbitcoinClient) FetchUnconfirmedTransaction(txid string, callback func(interface{}, error)){
-	b, _ := wire.NewShaHashFromStr(txid)
+func (l *LibbitcoinClient) FetchUnconfirmedTransaction(txid string, callback func(interface{}, error)) {
+	b, _ := chainhash.NewShaHashFromStr(txid)
 	go l.SendCommand("transaction_pool.fetch_transaction", b.Bytes(), callback)
 }
 
@@ -179,14 +179,14 @@ func (l *LibbitcoinClient) SubscribeAddress(address btc.Address, callback func(i
 	req = append(req, address.ScriptAddress()...)
 	go l.SendCommand("address.subscribe", req, nil)
 	l.lock.Lock()
-	l.subscriptions[address.String()] = subscription {
+	l.subscriptions[address.String()] = subscription{
 		expiration: time.Now().Add(24 * time.Hour),
-		callback: callback,
+		callback:   callback,
 	}
 	l.lock.Unlock()
 }
 
-func (l *LibbitcoinClient) UnsubscribeAddress(address btc.Address){
+func (l *LibbitcoinClient) UnsubscribeAddress(address btc.Address) {
 	l.lock.Lock()
 	_, ok := l.subscriptions[address.String()]
 	if ok {
@@ -204,7 +204,7 @@ func (l *LibbitcoinClient) RenewSubscription(address btc.Address, callback func(
 	l.lock.Lock()
 	l.subscriptions[address.String()] = subscription{
 		expiration: time.Now().Add(24 * time.Hour),
-		callback: callback,
+		callback:   callback,
 	}
 	l.lock.Unlock()
 }
@@ -220,11 +220,11 @@ func (l *LibbitcoinClient) Validate(tx []byte, callback func(interface{}, error)
 func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(interface{}, error)) {
 	switch command {
 	case "address.fetch_history2":
-		numRows := (len(data)-4)/49
+		numRows := (len(data) - 4) / 49
 		buff := bytes.NewBuffer(data)
 		err := ParseError(buff.Next(4))
 		rows := []FetchHistory2Resp{}
-		for i:=0; i<numRows; i++{
+		for i := 0; i < numRows; i++ {
 			r := FetchHistory2Resp{}
 			spendByte := int(buff.Next(1)[0])
 			var spendBool bool
@@ -235,7 +235,7 @@ func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(inte
 			}
 			r.IsSpend = spendBool
 			lehash := buff.Next(32)
-			sh, _:= wire.NewShaHash(lehash)
+			sh, _ := chainhash.NewShaHash(lehash)
 			r.TxHash = sh.String()
 			indexBytes := buff.Next(4)
 			r.Index = binary.LittleEndian.Uint32(indexBytes)
@@ -271,14 +271,14 @@ func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(inte
 			a, _ := btc.NewAddressScriptHashFromHash(addressHash160, l.Params)
 			addr = a
 		}
-		bl, _ := wire.NewShaHash(block)
+		bl, _ := chainhash.NewShaHash(block)
 		txn, _ := btc.NewTxFromBytes(tx)
 
 		resp := SubscribeResp{
 			Address: addr.String(),
-			Height: binary.LittleEndian.Uint32(height),
-			Block: bl.String(),
-			Tx: *txn,
+			Height:  binary.LittleEndian.Uint32(height),
+			Block:   bl.String(),
+			Tx:      *txn,
 		}
 		l.lock.Lock()
 		l.subscriptions[addr.String()].callback(resp)

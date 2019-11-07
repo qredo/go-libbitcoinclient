@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"github.com/btcsuite/btcd/chaincfg"
-	libbitcoin "github.com/OpenBazaar/go-libbitcoinclient"
+	libbitcoin "github.com/qredo/go-libbitcoinclient"
 )
 
 func main() {
