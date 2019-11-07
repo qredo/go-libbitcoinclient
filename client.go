@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -141,31 +140,31 @@ func (l *LibbitcoinClient) renewSubscriptions() {
 
 func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32, callback func(interface{}, error)) {
 	hash160 := address.ScriptAddress()
-	var netID byte
+	//var netID byte
 	height := make([]byte, 4)
 	binary.LittleEndian.PutUint32(height, fromHeight)
 	address.ScriptAddress()
 
-	switch reflect.TypeOf(address).String() {
+	// switch reflect.TypeOf(address).String() {
 
-	case "*btcutil.AddressPubKeyHash":
-		if l.Params.Name == chaincfg.MainNetParams.Name {
-			netID = byte(0)
-		} else {
-			netID = byte(111)
-		}
-	case "*btcutil.AddressScriptHash":
-		if l.Params.Name == chaincfg.MainNetParams.Name {
-			netID = byte(5)
-		} else {
-			netID = byte(196)
-		}
-	}
+	// case "*btcutil.AddressPubKeyHash":
+	// 	if l.Params.Name == chaincfg.MainNetParams.Name {
+	// 		netID = byte(0)
+	// 	} else {
+	// 		netID = byte(111)
+	// 	}
+	// case "*btcutil.AddressScriptHash":
+	// 	if l.Params.Name == chaincfg.MainNetParams.Name {
+	// 		netID = byte(5)
+	// 	} else {
+	// 		netID = byte(196)
+	// 	}
+	// }
 	req := []byte{}
-	req = append(req, netID)
+	//req = append(req, netID)
 	req = append(req, hash160...)
 	req = append(req, height...)
-	go l.SendCommand("address.fetch_history2", req, callback)
+	go l.SendCommand("blockchain.fetch_history3", req, callback)
 }
 
 func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{}, error)) {
