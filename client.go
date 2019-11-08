@@ -167,6 +167,16 @@ func (l *LibbitcoinClient) FetchHistory2(address btc.Address, fromHeight uint32,
 	go l.SendCommand("blockchain.fetch_history3", req, callback)
 }
 
+func (l *LibbitcoinClient) FetchHistory3(address btc.Address, fromHeight uint32, callback func(interface{}, error)) {
+	hash160 := address.ScriptAddress()
+	height := make([]byte, 4)
+	binary.LittleEndian.PutUint32(height, fromHeight)
+	req := []byte{}
+	req = append(req, hash160...)
+	req = append(req, height...)
+	go l.SendCommand("blockchain.fetch_history3", req, callback)
+}
+
 func (l *LibbitcoinClient) FetchLastHeight(callback func(interface{}, error)) {
 	go l.SendCommand("blockchain.fetch_last_height", []byte{}, callback)
 }
@@ -228,7 +238,7 @@ func (l *LibbitcoinClient) Validate(tx []byte, callback func(interface{}, error)
 
 func (l *LibbitcoinClient) Parse(command string, data []byte, callback func(interface{}, error)) {
 	switch command {
-	case "address.fetch_history2":
+	case "blockchain.fetch_history3":
 		numRows := (len(data) - 4) / 49
 		buff := bytes.NewBuffer(data)
 		err := ParseError(buff.Next(4))

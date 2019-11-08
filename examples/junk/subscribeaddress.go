@@ -1,10 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"sync"
 	"bytes"
 	"encoding/hex"
+	"fmt"
+	"sync"
+
 	"github.com/btcsuite/btcd/chaincfg"
 	btc "github.com/btcsuite/btcutil"
 	libbitcoin "github.com/qredo/go-libbitcoinclient"
@@ -15,13 +16,13 @@ func main() {
 	wg.Add(1)
 	servers := []libbitcoin.Server{
 		libbitcoin.Server{
-			Url:"tcp://libbitcoin2.openbazaar.org:9091",
-			PublicKey:"baihZB[vT(dcVCwkhYLAzah<t2gJ>{3@k?+>T&^3",
+			Url:       "tcp://mainnet.libbitcoin.net:9091",
+			PublicKey: "",
 		},
 	}
-	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.TestNet3Params)
-	addr, _ := btc.DecodeAddress("mrhqn9X8A121nn2AZCwqSdHcdQqttKKG45", &chaincfg.TestNet3Params)
-	client.SubscribeAddress(addr, func(i interface{}){
+	client := libbitcoin.NewLibbitcoinClient(servers, &chaincfg.MainNetParams)
+	addr, _ := btc.DecodeAddress("1dice8EMZmqKvrGE4Qc9bUFf9PX3xaYDp", &chaincfg.MainNetParams)
+	client.SubscribeAddress(addr, func(i interface{}) {
 		resp := i.(libbitcoin.SubscribeResp)
 		fmt.Printf("Address: %s\n", resp.Address)
 		fmt.Printf("Height: %d\n", resp.Height)
